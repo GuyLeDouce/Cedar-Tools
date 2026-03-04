@@ -1,15 +1,15 @@
 :root {
-  --bg: #f4f1e8;
-  --surface: #fffdf8;
-  --surface-strong: #f0e6d2;
-  --ink: #1f2a22;
-  --muted: #5b675d;
-  --brand: #2f5d3a;
-  --brand-dark: #1f4128;
-  --accent: #c88a2d;
+  --bg: #f0f5f8;
+  --surface: #ffffff;
+  --surface-strong: #e8f4f8;
+  --ink: #0e355f;
+  --muted: #4f667e;
+  --brand: #0b457f;
+  --brand-dark: #08345f;
+  --accent: #18bfd3;
   --danger: #a33824;
-  --border: #d4cbb8;
-  --shadow: 0 12px 28px rgba(31, 42, 34, 0.08);
+  --border: #c8dce8;
+  --shadow: 0 12px 28px rgba(10, 60, 110, 0.1);
   --radius: 16px;
 }
 
@@ -21,8 +21,8 @@ body {
   margin: 0;
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top right, rgba(200, 138, 45, 0.12), transparent 32%),
-    linear-gradient(180deg, #f7f3ea 0%, #f0ebdf 100%);
+    radial-gradient(circle at top right, rgba(24, 191, 211, 0.18), transparent 32%),
+    linear-gradient(180deg, #f6fbfe 0%, #eaf3f8 100%);
   color: var(--ink);
   min-height: 100vh;
 }
@@ -43,7 +43,7 @@ img {
 }
 
 .hero {
-  background: linear-gradient(135deg, rgba(47, 93, 58, 0.95), rgba(31, 65, 40, 0.98));
+  background: linear-gradient(135deg, rgba(11, 69, 127, 0.98), rgba(8, 52, 95, 0.99));
   color: #fff;
   padding: 22px;
   border-radius: 24px;
@@ -58,6 +58,16 @@ img {
 .hero p {
   margin: 8px 0 0;
   color: rgba(255, 255, 255, 0.84);
+}
+
+.hero .brand-logo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  margin-bottom: 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 8px;
 }
 
 .toolbar {
@@ -213,13 +223,13 @@ textarea {
 }
 
 .pill.available {
-  background: rgba(47, 93, 58, 0.12);
+  background: rgba(11, 69, 127, 0.12);
   color: var(--brand-dark);
 }
 
 .pill.checked {
-  background: rgba(200, 138, 45, 0.16);
-  color: #7f4f11;
+  background: rgba(24, 191, 211, 0.2);
+  color: #0b6070;
 }
 
 .notice {
@@ -229,7 +239,7 @@ textarea {
 }
 
 .notice.info {
-  background: rgba(47, 93, 58, 0.1);
+  background: rgba(11, 69, 127, 0.1);
   color: var(--brand-dark);
 }
 
