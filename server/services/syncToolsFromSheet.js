@@ -272,8 +272,8 @@ async function runToolSheetSync() {
 
       await sequelize.query(
         `
-        INSERT INTO tools (tool_id, name, category, description, location, status, qr_code)
-        VALUES (:tool_id, :name, :category, :description, :location, :status, :qr_code)
+        INSERT INTO tools (tool_id, name, category, description, location, status, qr_code, created_at)
+        VALUES (:tool_id, :name, :category, :description, :location, :status, :qr_code, NOW())
         ON CONFLICT (qr_code)
         DO UPDATE SET
           name = EXCLUDED.name,

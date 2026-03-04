@@ -70,13 +70,15 @@ async function start() {
     console.log("Tables synced");
     await ensureDefaultUsers();
     console.log("Default users ensured");
-    const syncEnabled = logSyncConfigurationStatus();
-    if (syncEnabled) {
-      await runToolSheetSync();
-      scheduleToolSheetSync();
-    }
     app.listen(port, () => {
       console.log(`Server running on ${port}`);
+      const syncEnabled = logSyncConfigurationStatus();
+      if (syncEnabled) {
+        runToolSheetSync().catch((error) => {
+          console.error("Initial sheet sync failed:", error.message);
+        });
+        scheduleToolSheetSync();
+      }
     });
   } catch (error) {
     console.error("Startup failed:", error);
