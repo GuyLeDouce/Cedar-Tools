@@ -13,6 +13,7 @@ const {
   scheduleToolSheetSync,
   logSyncConfigurationStatus
 } = require("./services/syncToolsFromSheet");
+const { ensureDefaultUsers } = require("./services/bootstrapUsers");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -67,6 +68,7 @@ async function start() {
     await initDatabase();
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
+    await ensureDefaultUsers();
     const syncEnabled = logSyncConfigurationStatus();
     if (syncEnabled) {
       await runToolSheetSync();
