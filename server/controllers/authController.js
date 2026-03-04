@@ -1,11 +1,21 @@
 const bcrypt = require("bcryptjs");
+const { Op } = require("sequelize");
 const { User } = require("../models");
 const { issueToken, clearSession } = require("../middleware/auth");
+
+function buildUsername(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 40);
+}
 
 function serializeUser(user) {
   return {
     id: user.id,
     name: user.name,
+    username: user.username,
     email: user.email,
     role: user.role,
     passwordResetRequired: user.passwordResetRequired
@@ -13,22 +23,31 @@ function serializeUser(user) {
 }
 
 async function login(req, res) {
-  const { email, password } = req.body;
+  const identifier = String(req.body.identifier || req.body.email || "").trim();
+  const { password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required." });
+  if (!identifier || !password) {
+    return res.status(400).json({ error: "Username or email and password are required." });
   }
 
-  const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
+  const normalizedIdentifier = identifier.toLowerCase();
+  const user = await User.findOne({
+    where: {
+      [Op.or]: [
+        { email: normalizedIdentifier },
+        { username: normalizedIdentifier }
+      ]
+    }
+  });
 
   if (!user) {
-    return res.status(401).json({ error: "Invalid email or password." });
+    return res.status(401).json({ error: "Invalid username, email, or password." });
   }
 
   const validPassword = await bcrypt.compare(password, user.passwordHash);
 
   if (!validPassword) {
-    return res.status(401).json({ error: "Invalid email or password." });
+    return res.status(401).json({ error: "Invalid username, email, or password." });
   }
 
   const token = issueToken(user);
@@ -104,7 +123,7 @@ async function changePassword(req, res) {
 
 async function listUsers(req, res) {
   const users = await User.findAll({
-    attributes: ["id", "name", "email", "role", "passwordResetRequired", "createdAt", "updatedAt"],
+    attributes: ["id", "name", "username", "email", "role", "passwordResetRequired", "createdAt", "updatedAt"],
     order: [["name", "ASC"]]
   });
 
@@ -112,7 +131,7 @@ async function listUsers(req, res) {
 }
 
 async function createUser(req, res) {
-  const { name, email, role, password } = req.body;
+  const { name, email, role, password, username } = req.body;
 
   if (!name || !email || !role) {
     return res.status(400).json({ error: "Name, email, and role are required." });
@@ -123,13 +142,25 @@ async function createUser(req, res) {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+  const normalizedUsername = buildUsername(username || name);
+
+  if (!normalizedUsername) {
+    return res.status(400).json({ error: "A valid username is required." });
+  }
+
   const existing = await User.findOne({ where: { email: normalizedEmail } });
 
   if (existing) {
     return res.status(409).json({ error: "A user with that email already exists." });
   }
 
-  const tempPassword = password?.trim() || "Cedar123!";
+  const existingUsername = await User.findOne({ where: { username: normalizedUsername } });
+
+  if (existingUsername) {
+    return res.status(409).json({ error: "A user with that username already exists." });
+  }
+
+  const tempPassword = password?.trim() || "cedar123!";
 
   if (tempPassword.length < 8) {
     return res.status(400).json({ error: "Temporary password must be at least 8 characters." });
@@ -137,6 +168,7 @@ async function createUser(req, res) {
 
   const user = await User.create({
     name: name.trim(),
+    username: normalizedUsername,
     email: normalizedEmail,
     role,
     passwordHash: await bcrypt.hash(tempPassword, 10),
@@ -156,7 +188,7 @@ async function resetUserPassword(req, res) {
     return res.status(404).json({ error: "User not found." });
   }
 
-  const tempPassword = req.body.password?.trim() || "Cedar123!";
+  const tempPassword = req.body.password?.trim() || "cedar123!";
 
   if (tempPassword.length < 8) {
     return res.status(400).json({ error: "Temporary password must be at least 8 characters." });
