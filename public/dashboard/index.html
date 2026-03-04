@@ -109,6 +109,10 @@
           </label>
           <button type="submit" class="button-accent">Save Tool Changes</button>
         </form>
+        <div class="toolbar">
+          <button id="generate-qr-button" class="button-secondary" type="button">Generate QR Code</button>
+          <a id="selected-qr-link" class="button button-secondary" href="#" hidden target="_blank" rel="noreferrer">Open Selected QR</a>
+        </div>
       </section>
     </main>
 
@@ -298,6 +302,27 @@
           event.target.reset();
           await loadDashboard();
           CedarApp.setMessage(message, "info", `Tool ${toolId} updated.`);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      });
+
+      document.getElementById("generate-qr-button").addEventListener("click", async () => {
+        const toolId = document.getElementById("edit-tool-id").value;
+
+        if (!toolId) {
+          CedarApp.setMessage(message, "error", "Select a tool to generate its QR code.");
+          return;
+        }
+
+        try {
+          const result = await CedarApp.request(`/tools/${toolId}/generate-qr`, {
+            method: "POST"
+          });
+          const qrLink = document.getElementById("selected-qr-link");
+          qrLink.href = result.qrLabelUrl;
+          qrLink.hidden = false;
+          CedarApp.setMessage(message, "info", `QR code generated for ${toolId}.`);
         } catch (error) {
           CedarApp.setMessage(message, "error", error.message);
         }

@@ -178,6 +178,22 @@ async function updateTool(req, res) {
   });
 }
 
+async function generateToolQr(req, res) {
+  const tool = await Tool.findOne({ where: { toolId: req.params.id.toUpperCase() } });
+
+  if (!tool) {
+    return res.status(404).json({ error: "Tool not found." });
+  }
+
+  await generateQrForTool(tool.toolId);
+
+  return res.json({
+    success: true,
+    toolId: tool.toolId,
+    qrLabelUrl: `/qr-labels/${tool.toolId}.png`
+  });
+}
+
 async function dashboardSummary(req, res) {
   const tools = await Tool.findAll({
     include: [{ model: User, as: "holder", attributes: ["id", "name", "email"] }],
@@ -250,6 +266,7 @@ module.exports = {
   returnTool,
   createTool,
   updateTool,
+  generateToolQr,
   dashboardSummary,
   generateQrForTool
 };

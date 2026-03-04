@@ -8,6 +8,7 @@ const {
   returnTool,
   createTool,
   updateTool,
+  generateToolQr,
   dashboardSummary
 } = require("../controllers/toolController");
 const { authenticate, requireAdmin } = require("../middleware/auth");
@@ -31,6 +32,7 @@ router.post("/checkout", authenticate, checkoutTool);
 router.post("/return", authenticate, returnTool);
 router.post("/tools", authenticate, requireAdmin, upload.single("photo"), createTool);
 router.put("/tools/:id", authenticate, requireAdmin, upload.single("photo"), updateTool);
+router.post("/tools/:id/generate-qr", authenticate, requireAdmin, generateToolQr);
 router.get("/api/dashboard", authenticate, requireAdmin, dashboardSummary);
 router.post("/admin/sync-tools", authenticate, requireAdmin, async (_req, res, next) => {
   try {
