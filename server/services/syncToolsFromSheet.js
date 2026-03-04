@@ -39,8 +39,43 @@ function getSyncConfig() {
   };
 }
 
+function getParsedCredentials() {
+  const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+  if (!rawJson) {
+    const error = new Error("Missing service account credentials.");
+    error.code = "SERVICE_ACCOUNT_JSON_MISSING";
+    throw error;
+  }
+
+  try {
+    return JSON.parse(rawJson);
+  } catch (_error) {
+    const error = new Error("Invalid GOOGLE_SERVICE_ACCOUNT_JSON format.");
+    error.code = "SERVICE_ACCOUNT_JSON_INVALID";
+    throw error;
+  }
+}
+
 function getNormalizedPrivateKey(rawPrivateKey) {
-  return String(rawPrivateKey).replace(/\\n/g, "\n").replace(/\n/g, "\n");
+  return String(rawPrivateKey || "").replace(/\\n/g, "\n").replace(/\n/g, "\n");
+}
+
+function validateServiceAccountCredentials(creds, privateKey) {
+  const hasClientEmail = Boolean(creds.client_email);
+  const hasPrivateKey = Boolean(privateKey);
+  const includesBeginPrivateKey = privateKey.includes("BEGIN PRIVATE KEY");
+
+  console.log(`Google service account client_email present: ${hasClientEmail}`);
+  console.log(`Google service account private_key present: ${hasPrivateKey}`);
+  console.log(`Google service account private_key length: ${privateKey.length}`);
+  console.log(`Google service account private_key includes BEGIN PRIVATE KEY: ${includesBeginPrivateKey}`);
+
+  if (!hasClientEmail || !hasPrivateKey || !includesBeginPrivateKey) {
+    const error = new Error("Missing client_email or private_key in GOOGLE_SERVICE_ACCOUNT_JSON");
+    error.code = "SERVICE_ACCOUNT_JSON_FIELDS_MISSING";
+    throw error;
+  }
 }
 
 async function createSheetsClient() {
@@ -52,12 +87,15 @@ async function createSheetsClient() {
     throw error;
   }
 
-  const auth = new google.auth.JWT(
-    config.credentials.client_email,
-    null,
-    getNormalizedPrivateKey(config.credentials.private_key),
-    ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-  );
+  const creds = getParsedCredentials();
+  const privateKey = getNormalizedPrivateKey(creds.private_key);
+  validateServiceAccountCredentials(creds, privateKey);
+
+  const auth = new google.auth.JWT({
+    email: creds.client_email,
+    key: privateKey,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  });
 
   try {
     await auth.authorize();
