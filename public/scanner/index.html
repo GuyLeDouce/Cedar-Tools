@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scanner | Cedar Winds</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell stack">
+      <section class="hero">
+        <h1>QR Scanner</h1>
+        <p>Point your phone camera at the tool label. You can also type a tool ID if needed.</p>
+      </section>
+
+      <section class="card stack">
+        <div id="scanner" class="scanner-frame"></div>
+        <div id="scanner-message" class="notice info">Checking your session...</div>
+        <label>
+          Manual tool ID
+          <input type="text" id="manual-tool-id" placeholder="T001" />
+        </label>
+        <button id="manual-open" class="button-secondary" type="button">Open Tool</button>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="/app.js"></script>
+    <script>
+      const message = document.getElementById("scanner-message");
+      const manualToolId = document.getElementById("manual-tool-id");
+
+      async function ensureAuth() {
+        const user = await CedarApp.getCurrentUser();
+
+        if (!user) {
+          CedarApp.redirectToLogin("/scanner");
+          return false;
+        }
+
+        CedarApp.setMessage(message, "info", `Signed in as ${user.name}. Ready to scan.`);
+        return true;
+      }
+
+      function goToTool(value) {
+        if (!value) {
+          CedarApp.setMessage(message, "error", "Enter or scan a valid tool ID.");
+          return;
+        }
+
+        const match = value.match(/\/tool\/([A-Za-z0-9-]+)$/);
+        const toolId = match ? match[1] : value.trim().toUpperCase();
+        window.location.href = `/tool/${toolId}`;
+      }
+
+      document.getElementById("manual-open").addEventListener("click", () => goToTool(manualToolId.value));
+
+      (async () => {
+        const allowed = await ensureAuth();
+
+        if (!allowed || !window.Html5Qrcode) {
+          return;
+        }
+
+        const html5QrCode = new Html5Qrcode("scanner");
+
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (decodedText) => {
+              html5QrCode.stop().catch(() => null);
+              goToTool(decodedText);
+            }
+          );
+        } catch (error) {
+          CedarApp.setMessage(message, "error", "Camera unavailable. Use the manual tool ID field instead.");
+        }
+      })();
+    </script>
+  </body>
+</html>

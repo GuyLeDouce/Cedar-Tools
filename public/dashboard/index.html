@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | Cedar Winds</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell stack">
+      <section class="hero">
+        <h1>Admin Dashboard</h1>
+        <p>Live tool visibility across job sites.</p>
+      </section>
+
+      <section class="card stack">
+        <div id="dashboard-message" class="notice info">Loading dashboard...</div>
+        <div class="toolbar">
+          <select id="status-filter">
+            <option value="">All Statuses</option>
+            <option value="Available">Available</option>
+            <option value="Checked Out">Checked Out</option>
+          </select>
+          <select id="user-filter">
+            <option value="">All Holders</option>
+          </select>
+          <button id="logout-button" class="button-secondary" type="button">Log Out</button>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <h2>Inventory</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tool ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Current Holder</th>
+                <th>Last Activity</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid two">
+        <article class="card chart-card stack">
+          <h2>Most Used Tools</h2>
+          <canvas id="usage-chart" height="220"></canvas>
+        </article>
+        <article class="card chart-card stack">
+          <h2>Overdue Tools</h2>
+          <div id="overdue-list" class="stack"></div>
+        </article>
+      </section>
+
+      <section class="card stack">
+        <h2>Recent Usage History</h2>
+        <div id="history-list" class="stack"></div>
+      </section>
+
+      <section class="card stack">
+        <h2>Add Tool</h2>
+        <form id="tool-form" class="form-grid" enctype="multipart/form-data">
+          <label>
+            Tool ID
+            <input type="text" name="toolId" required placeholder="T006" />
+          </label>
+          <label>
+            Tool Name
+            <input type="text" name="name" required placeholder="Bosch Rotary Hammer" />
+          </label>
+          <label>
+            Description
+            <textarea name="description" placeholder="Short field description"></textarea>
+          </label>
+          <label>
+            Tool Photo
+            <input type="file" name="photo" accept="image/*" />
+          </label>
+          <button type="submit" class="button-primary">Add Tool and Generate QR</button>
+        </form>
+        <a id="new-qr-link" class="button button-secondary" href="#" hidden target="_blank" rel="noreferrer">Open Latest QR Label</a>
+      </section>
+
+      <section class="card stack">
+        <h2>Edit Tool</h2>
+        <form id="edit-tool-form" class="form-grid" enctype="multipart/form-data">
+          <label>
+            Select Tool
+            <select id="edit-tool-id" name="toolId" required>
+              <option value="">Choose a tool</option>
+            </select>
+          </label>
+          <label>
+            Updated Tool Name
+            <input type="text" name="name" placeholder="Updated name" />
+          </label>
+          <label>
+            Updated Description
+            <textarea name="description" placeholder="Updated description"></textarea>
+          </label>
+          <label>
+            Replace Tool Photo
+            <input type="file" name="photo" accept="image/*" />
+          </label>
+          <button type="submit" class="button-accent">Save Tool Changes</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="/app.js"></script>
+    <script>
+      const message = document.getElementById("dashboard-message");
+      const inventoryBody = document.getElementById("inventory-body");
+      const statusFilter = document.getElementById("status-filter");
+      const userFilter = document.getElementById("user-filter");
+      let dashboardData = null;
+      let chart = null;
+
+      function populateFilters(tools) {
+        const users = [...new Map(
+          tools
+            .filter((tool) => tool.currentHolder)
+            .map((tool) => [tool.currentHolder.id, tool.currentHolder])
+        ).values()];
+
+        userFilter.innerHTML = '<option value="">All Holders</option>' +
+          users.map((user) => `<option value="${user.id}">${user.name}</option>`).join("");
+
+        document.getElementById("edit-tool-id").innerHTML =
+          '<option value="">Choose a tool</option>' +
+          tools.map((tool) => `<option value="${tool.toolId}">${tool.toolId} • ${tool.name}</option>`).join("");
+      }
+
+      function renderInventory() {
+        const status = statusFilter.value;
+        const holder = userFilter.value;
+        const tools = dashboardData.tools.filter((tool) => {
+          const statusMatch = !status || tool.status === status;
+          const holderMatch = !holder || String(tool.currentHolder?.id || "") === holder;
+          return statusMatch && holderMatch;
+        });
+
+        if (!tools.length) {
+          inventoryBody.innerHTML = '<tr><td colspan="5" class="empty">No tools match the selected filters.</td></tr>';
+          return;
+        }
+
+        inventoryBody.innerHTML = tools.map((tool) => `
+          <tr>
+            <td>${tool.toolId}</td>
+            <td>${tool.name}</td>
+            <td>${CedarApp.statusPill(tool.status)}</td>
+            <td>${tool.currentHolder ? tool.currentHolder.name : "Unassigned"}</td>
+            <td>${tool.lastActivity ? `${tool.lastActivity.action} on ${CedarApp.formatDate(tool.lastActivity.timestamp)}` : "No history"}</td>
+          </tr>
+        `).join("");
+      }
+
+      function renderMostUsedChart() {
+        const canvas = document.getElementById("usage-chart");
+        const labels = dashboardData.mostUsedTools.map((item) => item.toolId);
+        const values = dashboardData.mostUsedTools.map((item) => item.count);
+
+        if (chart) {
+          chart.destroy();
+        }
+
+        chart = new Chart(canvas, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Transactions",
+                data: values,
+                backgroundColor: "#2f5d3a",
+                borderRadius: 8
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0 }
+              }
+            }
+          }
+        });
+      }
+
+      function renderOverdue() {
+        const overdueList = document.getElementById("overdue-list");
+
+        if (!dashboardData.overdueTools.length) {
+          overdueList.innerHTML = '<div class="empty">No overdue tools right now.</div>';
+          return;
+        }
+
+        overdueList.innerHTML = dashboardData.overdueTools.map((tool) => `
+          <div class="notice error">
+            ${tool.toolId} • ${tool.name} is with ${tool.currentHolder ? tool.currentHolder.name : "Unknown"} since
+            ${CedarApp.formatDate(tool.lastActivity?.timestamp)}
+          </div>
+        `).join("");
+      }
+
+      function renderHistory() {
+        const historyList = document.getElementById("history-list");
+
+        if (!dashboardData.usageHistory.length) {
+          historyList.innerHTML = '<div class="empty">No usage activity yet.</div>';
+          return;
+        }
+
+        historyList.innerHTML = dashboardData.usageHistory.map((entry) => `
+          <div class="notice info">
+            ${entry.toolId} • ${entry.toolName} was ${entry.action} by ${entry.user} on ${CedarApp.formatDate(entry.timestamp)}
+          </div>
+        `).join("");
+      }
+
+      async function loadDashboard() {
+        try {
+          const user = await CedarApp.getCurrentUser();
+          if (!user) {
+            CedarApp.redirectToLogin("/dashboard");
+            return;
+          }
+
+          if (user.role !== "Admin") {
+            CedarApp.setMessage(message, "error", "Admin access required.");
+            return;
+          }
+
+          dashboardData = await CedarApp.request("/api/dashboard");
+          populateFilters(dashboardData.tools);
+          renderInventory();
+          renderMostUsedChart();
+          renderOverdue();
+          renderHistory();
+          CedarApp.setMessage(message, "info", `Signed in as ${user.name}.`);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      }
+
+      statusFilter.addEventListener("change", renderInventory);
+      userFilter.addEventListener("change", renderInventory);
+
+      document.getElementById("tool-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+
+        try {
+          const result = await CedarApp.request("/tools", {
+            method: "POST",
+            body: formData
+          });
+          event.target.reset();
+          await loadDashboard();
+          const qrLink = document.getElementById("new-qr-link");
+          qrLink.href = result.qrLabelUrl;
+          qrLink.hidden = false;
+          CedarApp.setMessage(message, "info", "Tool added. QR label generated in /public/qr-labels.");
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      });
+
+      document.getElementById("edit-tool-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const toolId = document.getElementById("edit-tool-id").value;
+
+        if (!toolId) {
+          CedarApp.setMessage(message, "error", "Select a tool to edit.");
+          return;
+        }
+
+        const formData = new FormData(event.target);
+
+        try {
+          await CedarApp.request(`/tools/${toolId}`, {
+            method: "PUT",
+            body: formData
+          });
+          event.target.reset();
+          await loadDashboard();
+          CedarApp.setMessage(message, "info", `Tool ${toolId} updated.`);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      });
+
+      document.getElementById("logout-button").addEventListener("click", async () => {
+        await CedarApp.request("/logout", { method: "POST" });
+        window.location.href = "/login";
+      });
+
+      loadDashboard();
+    </script>
+  </body>
+</html>

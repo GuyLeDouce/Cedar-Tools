@@ -1,0 +1,30 @@
+{
+  "name": "cedar-winds-tool-tracker",
+  "version": "1.0.0",
+  "description": "QR code tool tracking system for Cedar Winds",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "db:init": "node database/init.js",
+    "seed": "node database/seed.js",
+    "qr:export": "node scripts/generate-qr-labels.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.3",
+    "qrcode": "^1.5.4",
+    "sequelize": "^6.37.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

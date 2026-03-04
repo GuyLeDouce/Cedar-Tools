@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tool | Cedar Winds</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell stack">
+      <section class="hero">
+        <h1 id="tool-title">Tool Details</h1>
+        <p id="tool-subtitle">Loading current tool status...</p>
+      </section>
+
+      <section class="card stack">
+        <div id="tool-message" class="notice info" hidden></div>
+        <div class="grid two">
+          <div class="stack">
+            <div id="tool-photo-wrap" hidden>
+              <img id="tool-photo" alt="Tool photo" style="border-radius: 16px; border: 1px solid var(--border);" />
+            </div>
+            <div id="tool-status"></div>
+            <div class="meta" id="tool-holder"></div>
+            <div class="meta" id="tool-activity"></div>
+            <p id="tool-description"></p>
+          </div>
+          <div class="stack">
+            <button id="checkout-button" class="button-primary" type="button">CHECK OUT TOOL</button>
+            <button id="return-button" class="button-secondary" type="button">RETURN TOOL</button>
+            <a class="button button-secondary" href="/scanner">Back to Scanner</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+    <script>
+      const message = document.getElementById("tool-message");
+      const toolId = window.location.pathname.split("/").pop().toUpperCase();
+      let currentUser = null;
+      let currentTool = null;
+
+      function renderTool(tool) {
+        currentTool = tool;
+        document.getElementById("tool-title").textContent = `${tool.toolId} • ${tool.name}`;
+        document.getElementById("tool-subtitle").textContent = "Live field status";
+        document.getElementById("tool-status").innerHTML = CedarApp.statusPill(tool.status);
+        document.getElementById("tool-holder").textContent = tool.currentHolder
+          ? `Current Holder: ${tool.currentHolder.name}`
+          : "Current Holder: None";
+        document.getElementById("tool-activity").textContent = tool.lastActivity
+          ? `Last Activity: ${tool.lastActivity.action} by ${tool.lastActivity.user} on ${CedarApp.formatDate(tool.lastActivity.timestamp)}`
+          : "Last Activity: No history yet";
+        document.getElementById("tool-description").textContent = tool.description || "No description available.";
+
+        const photoWrap = document.getElementById("tool-photo-wrap");
+        const photo = document.getElementById("tool-photo");
+        if (tool.photoUrl) {
+          photo.src = tool.photoUrl;
+          photoWrap.hidden = false;
+        } else {
+          photoWrap.hidden = true;
+        }
+
+        document.getElementById("checkout-button").disabled = tool.status !== "Available";
+        document.getElementById("return-button").disabled =
+          tool.status !== "Checked Out" ||
+          (!currentUser || (currentUser.role !== "Admin" && tool.currentHolder?.id !== currentUser.id));
+      }
+
+      async function loadTool() {
+        try {
+          const user = await CedarApp.getCurrentUser();
+          if (!user) {
+            CedarApp.redirectToLogin(window.location.pathname);
+            return;
+          }
+
+          currentUser = user;
+          const data = await CedarApp.request(`/api/tool/${toolId}`);
+          renderTool(data.tool);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      }
+
+      async function submitAction(path) {
+        CedarApp.clearMessage(message);
+
+        try {
+          const data = await CedarApp.request(path, {
+            method: "POST",
+            body: JSON.stringify({ toolId })
+          });
+          renderTool(data.tool);
+          CedarApp.setMessage(message, "info", `Tool updated successfully.`);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      }
+
+      document.getElementById("checkout-button").addEventListener("click", () => submitAction("/checkout"));
+      document.getElementById("return-button").addEventListener("click", () => submitAction("/return"));
+
+      loadTool();
+    </script>
+  </body>
+</html>
