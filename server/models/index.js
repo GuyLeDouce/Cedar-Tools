@@ -1,7 +1,24 @@
-const sequelize = require("../config/database");
+require("dotenv").config();
+
+const { Sequelize } = require("sequelize");
 const createUser = require("./User");
 const createTool = require("./Tool");
 const createTransaction = require("./Transaction");
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set.");
+}
+
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: "postgres",
+  logging: false,
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  }
+});
 
 const User = createUser(sequelize);
 const Tool = createTool(sequelize);

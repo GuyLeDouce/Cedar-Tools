@@ -5,7 +5,7 @@ const path = require("path");
 const cron = require("node-cron");
 const QRCode = require("qrcode");
 const { google } = require("googleapis");
-const { Tool } = require("../models");
+const { Tool, sequelize } = require("../models");
 
 const CRON_SCHEDULE = "0 * * * *";
 
@@ -126,7 +126,9 @@ function normalizeRow(row) {
   return {
     toolId,
     name,
+    category,
     description: mergedDescription,
+    qrCode: `/tool/${toolId}`,
     location,
     status: "Available"
   };
@@ -171,6 +173,19 @@ async function fetchToolRows() {
   });
 
   return removeHeaderRow(response.data.values || []);
+}
+
+async function ensureToolSyncColumns() {
+  await sequelize.query(`
+    ALTER TABLE tools
+    ADD COLUMN IF NOT EXISTS category VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS qr_code VARCHAR(255);
+  `);
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS tools_qr_code_unique
+    ON tools (qr_code);
+  `);
 }
 
 async function testGoogleConnection() {
@@ -242,20 +257,45 @@ async function runToolSheetSync() {
   let qrCodesGenerated = 0;
 
   try {
+    await ensureToolSyncColumns();
     const rows = await fetchToolRows();
     rowsFetched = rows.length;
     console.log(`Rows fetched: ${rowsFetched}`);
     const tools = rows.map(normalizeRow).filter(Boolean);
 
     for (const tool of tools) {
-      const [record, created] = await Tool.findOrCreate({
-        where: { toolId: tool.toolId },
-        defaults: tool
+      const existing = await Tool.findOne({
+        where: {
+          qrCode: tool.qrCode
+        }
       });
 
-      if (!created) {
+      await sequelize.query(
+        `
+        INSERT INTO tools (tool_id, name, category, description, location, status, qr_code)
+        VALUES (:tool_id, :name, :category, :description, :location, :status, :qr_code)
+        ON CONFLICT (qr_code)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          category = EXCLUDED.category,
+          description = EXCLUDED.description,
+          location = EXCLUDED.location;
+        `,
+        {
+          replacements: {
+            tool_id: tool.toolId,
+            name: tool.name,
+            category: tool.category,
+            description: tool.description,
+            location: tool.location,
+            status: tool.status,
+            qr_code: tool.qrCode
+          }
+        }
+      );
+
+      if (existing) {
         existingToolsSkipped += 1;
-        console.log(`Tool already exists: ${record.toolId}`);
         continue;
       }
 

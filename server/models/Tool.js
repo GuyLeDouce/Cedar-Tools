@@ -19,8 +19,18 @@ module.exports = (sequelize) =>
         type: DataTypes.STRING,
         allowNull: false
       },
+      category: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
       description: {
         type: DataTypes.TEXT
+      },
+      qrCode: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+        field: "qr_code"
       },
       location: {
         type: DataTypes.STRING,

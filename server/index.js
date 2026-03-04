@@ -5,7 +5,6 @@ const path = require("path");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const { sequelize } = require("./models");
-const { initDatabase } = require("./db/database");
 const authRoutes = require("./routes/authRoutes");
 const toolRoutes = require("./routes/toolRoutes");
 const {
@@ -65,20 +64,22 @@ app.use((err, _req, res, _next) => {
 
 async function start() {
   try {
-    await initDatabase();
     await sequelize.authenticate();
-    await sequelize.sync({ alter: true });
+    console.log("Database connected");
+    await sequelize.sync();
+    console.log("Tables synced");
     await ensureDefaultUsers();
+    console.log("Default users ensured");
     const syncEnabled = logSyncConfigurationStatus();
     if (syncEnabled) {
       await runToolSheetSync();
       scheduleToolSheetSync();
     }
     app.listen(port, () => {
-      console.log(`Cedar Winds tool tracker listening on ${port}`);
+      console.log(`Server running on ${port}`);
     });
   } catch (error) {
-    console.error("Server failed to start:", error);
+    console.error("Startup failed:", error);
     process.exit(1);
   }
 }
