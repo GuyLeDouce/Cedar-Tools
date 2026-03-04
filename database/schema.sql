@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS tools (
   name VARCHAR(120) NOT NULL,
   description TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'Available',
+  location VARCHAR(120),
   current_holder INTEGER REFERENCES users(id) ON DELETE SET NULL,
   photo_url VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()

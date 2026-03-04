@@ -22,6 +22,10 @@ module.exports = (sequelize) =>
       description: {
         type: DataTypes.TEXT
       },
+      location: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
       status: {
         type: DataTypes.ENUM("Available", "Checked Out"),
         allowNull: false,

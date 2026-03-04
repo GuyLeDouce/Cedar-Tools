@@ -16,6 +16,7 @@ async function formatTool(tool) {
     toolId: tool.toolId,
     name: tool.name,
     description: tool.description,
+    location: tool.location,
     status: tool.status,
     photoUrl: tool.photoUrl,
     currentHolder: tool.holder
@@ -141,6 +142,7 @@ async function createTool(req, res) {
     toolId,
     name: req.body.name.trim(),
     description: req.body.description?.trim() || "",
+    location: req.body.location?.trim() || "",
     status: "Available",
     photoUrl
   });
@@ -162,6 +164,7 @@ async function updateTool(req, res) {
 
   tool.name = req.body.name?.trim() || tool.name;
   tool.description = req.body.description?.trim() || tool.description;
+  tool.location = req.body.location?.trim() || tool.location;
 
   if (req.file) {
     tool.photoUrl = `/uploads/${req.file.filename}`;

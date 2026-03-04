@@ -7,12 +7,14 @@ const cookieParser = require("cookie-parser");
 const { sequelize } = require("./models");
 const authRoutes = require("./routes/authRoutes");
 const toolRoutes = require("./routes/toolRoutes");
+const { runToolSheetSync, scheduleToolSheetSync } = require("./services/syncToolsFromSheet");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 fs.mkdirSync(path.join(process.cwd(), "public", "uploads"), { recursive: true });
 fs.mkdirSync(path.join(process.cwd(), "public", "qr-labels"), { recursive: true });
+fs.mkdirSync(path.join(process.cwd(), "qr-codes"), { recursive: true });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -54,7 +56,9 @@ app.use((err, _req, res, _next) => {
 async function start() {
   try {
     await sequelize.authenticate();
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
+    await runToolSheetSync();
+    scheduleToolSheetSync();
     app.listen(port, () => {
       console.log(`Cedar Winds tool tracker listening on ${port}`);
     });
