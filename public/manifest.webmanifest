@@ -1,6 +1,6 @@
 {
-  "name": "Cedar Winds Tool Tracker",
-  "short_name": "Cedar Tools",
+  "name": "CW Tools",
+  "short_name": "CW Tools",
   "description": "Mobile-first tool tracking for Cedar Winds workers and admins.",
   "start_url": "/",
   "scope": "/",
@@ -9,10 +9,10 @@
   "theme_color": "#2f5d3a",
   "icons": [
     {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "/icons/ToolsLogo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ]
 }

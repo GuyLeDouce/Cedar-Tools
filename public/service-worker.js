@@ -1,4 +1,4 @@
-const CACHE_NAME = "cedar-tools-v2";
+const CACHE_NAME = "cedar-tools-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -14,7 +14,7 @@ const APP_SHELL = [
   "/styles.css",
   "/app.js",
   "/manifest.webmanifest",
-  "/icons/icon.svg"
+  "/icons/ToolsLogo.jpg"
 ];
 
 self.addEventListener("install", (event) => {
