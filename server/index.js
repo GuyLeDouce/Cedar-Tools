@@ -5,6 +5,7 @@ const path = require("path");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const { sequelize } = require("./models");
+const { initDatabase } = require("./db/database");
 const authRoutes = require("./routes/authRoutes");
 const toolRoutes = require("./routes/toolRoutes");
 const {
@@ -63,6 +64,7 @@ app.use((err, _req, res, _next) => {
 
 async function start() {
   try {
+    await initDatabase();
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
     const syncEnabled = logSyncConfigurationStatus();
