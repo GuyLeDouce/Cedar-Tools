@@ -11,29 +11,30 @@ const CRON_SCHEDULE = "0 * * * *";
 
 function getSyncConfig() {
   const sheetId = process.env.GOOGLE_SHEET_ID;
-  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const range = process.env.GOOGLE_SHEET_RANGE || "Tools!A:E";
   const missing = [];
+  let credentials = null;
+
+  if (!serviceAccountJson) {
+    missing.push("GOOGLE_SERVICE_ACCOUNT_JSON");
+  } else {
+    try {
+      credentials = JSON.parse(serviceAccountJson);
+    } catch (_error) {
+      missing.push("GOOGLE_SERVICE_ACCOUNT_JSON");
+    }
+  }
 
   if (!sheetId) {
     missing.push("GOOGLE_SHEET_ID");
-  }
-
-  if (!serviceAccountEmail) {
-    missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
-  }
-
-  if (!privateKey) {
-    missing.push("GOOGLE_PRIVATE_KEY");
   }
 
   return {
     enabled: missing.length === 0,
     missing,
     sheetId,
-    serviceAccountEmail,
-    privateKey,
+    credentials,
     range
   };
 }
@@ -51,16 +52,17 @@ async function createSheetsClient() {
     throw error;
   }
 
-  const auth = new google.auth.JWT({
-    email: config.serviceAccountEmail,
-    key: getNormalizedPrivateKey(config.privateKey),
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-  });
+  const auth = new google.auth.JWT(
+    config.credentials.client_email,
+    null,
+    getNormalizedPrivateKey(config.credentials.private_key),
+    ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  );
 
   try {
     await auth.authorize();
   } catch (error) {
-    const authError = new Error("Google authentication failed. Check GOOGLE_PRIVATE_KEY formatting.");
+    const authError = new Error("Google authentication failed. Check GOOGLE_SERVICE_ACCOUNT_JSON formatting.");
     authError.code = "GOOGLE_AUTH_FAILED";
     authError.cause = error;
     throw authError;
@@ -133,13 +135,55 @@ async function fetchToolRows() {
   return removeHeaderRow(response.data.values || []);
 }
 
+async function testGoogleConnection() {
+  const config = getSyncConfig();
+
+  if (!config.enabled) {
+    if (config.missing.includes("GOOGLE_SERVICE_ACCOUNT_JSON")) {
+      console.warn("Google Sheets sync disabled. Missing service account credentials.");
+    } else {
+      console.warn(
+        `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
+      );
+    }
+
+    return {
+      success: false,
+      missing: config.missing,
+      rowsFetched: 0,
+      rows: []
+    };
+  }
+
+  const sheets = await createSheetsClient();
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.sheetId,
+    range: config.range
+  });
+
+  const rows = response.data.values || [];
+  console.log(`Rows fetched: ${rows.length}`);
+  console.log("First 5 rows:");
+  console.log(JSON.stringify(rows.slice(0, 5), null, 2));
+
+  return {
+    success: true,
+    rowsFetched: rows.length,
+    rows: rows.slice(0, 5)
+  };
+}
+
 async function runToolSheetSync() {
   const config = getSyncConfig();
 
   if (!config.enabled) {
-    console.warn(
-      `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
-    );
+    if (config.missing.includes("GOOGLE_SERVICE_ACCOUNT_JSON")) {
+      console.warn("Google Sheets sync disabled. Missing service account credentials.");
+    } else {
+      console.warn(
+        `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
+      );
+    }
     return {
       success: false,
       disabled: true,
@@ -218,9 +262,13 @@ function logSyncConfigurationStatus() {
   const config = getSyncConfig();
 
   if (!config.enabled) {
-    console.warn(
-      `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
-    );
+    if (config.missing.includes("GOOGLE_SERVICE_ACCOUNT_JSON")) {
+      console.warn("Google Sheets sync disabled. Missing service account credentials.");
+    } else {
+      console.warn(
+        `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
+      );
+    }
     return false;
   }
 
@@ -246,6 +294,7 @@ module.exports = {
   getSyncConfig,
   createSheetsClient,
   fetchToolRows,
+  testGoogleConnection,
   runToolSheetSync,
   scheduleToolSheetSync,
   logSyncConfigurationStatus

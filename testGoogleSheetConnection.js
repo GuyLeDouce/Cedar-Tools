@@ -1,14 +1,18 @@
 require("dotenv").config();
 
-const { createSheetsClient, getSyncConfig } = require("./server/services/syncToolsFromSheet");
+const { getSyncConfig, testGoogleConnection: runGoogleConnectionTest } = require("./server/services/syncToolsFromSheet");
 
-async function testGoogleSheetConnection() {
+async function testGoogleConnection() {
   const config = getSyncConfig();
 
   if (!config.enabled) {
-    console.error(
-      `Google Sheets test disabled. Missing required environment variables: ${config.missing.join(", ")}`
-    );
+    if (config.missing.includes("GOOGLE_SERVICE_ACCOUNT_JSON")) {
+      console.error("Google Sheets test disabled. Missing service account credentials.");
+    } else {
+      console.error(
+        `Google Sheets test disabled. Missing required environment variables: ${config.missing.join(", ")}`
+      );
+    }
     process.exit(1);
   }
 
@@ -17,16 +21,7 @@ async function testGoogleSheetConnection() {
   console.log(`Range: ${config.range}`);
 
   try {
-    const sheets = await createSheetsClient();
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: config.sheetId,
-      range: config.range
-    });
-
-    const rows = response.data.values || [];
-    console.log(`Rows fetched: ${rows.length}`);
-    console.log("First 5 rows:");
-    console.log(JSON.stringify(rows.slice(0, 5), null, 2));
+    await runGoogleConnectionTest();
     process.exit(0);
   } catch (error) {
     if (error.code === "GOOGLE_AUTH_FAILED") {
@@ -41,4 +36,4 @@ async function testGoogleSheetConnection() {
   }
 }
 
-testGoogleSheetConnection();
+testGoogleConnection();
