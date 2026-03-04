@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2f5d3a" />
     <title>Cedar Winds Tool Tracker</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -11,6 +13,9 @@
       <section class="hero">
         <h1>Cedar Winds Tool Tracker</h1>
         <p>Scan a QR label, log in, and check tools in or out from the job site.</p>
+        <div class="toolbar compact">
+          <button id="install-app-button" class="button-ghost" type="button" hidden>Install App</button>
+        </div>
       </section>
 
       <section class="grid two">
@@ -32,5 +37,9 @@
         </article>
       </section>
     </main>
+    <script src="/app.js"></script>
+    <script>
+      CedarApp.bindInstallButton(document.getElementById("install-app-button"));
+    </script>
   </body>
 </html>

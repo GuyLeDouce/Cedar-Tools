@@ -1,0 +1,18 @@
+{
+  "name": "Cedar Winds Tool Tracker",
+  "short_name": "Cedar Tools",
+  "description": "Mobile-first tool tracking for Cedar Winds workers and admins.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f1e8",
+  "theme_color": "#2f5d3a",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

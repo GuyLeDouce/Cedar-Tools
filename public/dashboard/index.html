@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2f5d3a" />
     <title>Dashboard | Cedar Winds</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -11,6 +13,9 @@
       <section class="hero">
         <h1>Admin Dashboard</h1>
         <p>Live tool visibility, user access, and password controls.</p>
+        <div class="toolbar compact">
+          <button id="install-app-button" class="button-ghost" type="button" hidden>Install App</button>
+        </div>
       </section>
 
       <section class="card stack">
@@ -190,6 +195,8 @@
       const userFilter = document.getElementById("user-filter");
       let dashboardData = null;
       let chart = null;
+
+      CedarApp.bindInstallButton(document.getElementById("install-app-button"));
 
       function populateToolFilters(tools) {
         const holderUsers = [...new Map(

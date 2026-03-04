@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2f5d3a" />
     <title>Login | Cedar Winds</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -11,6 +13,9 @@
       <section class="hero">
         <h1>Secure Sign-In</h1>
         <p>Use your Cedar Winds email and password to continue.</p>
+        <div class="toolbar compact">
+          <button id="install-app-button" class="button-ghost" type="button" hidden>Install App</button>
+        </div>
       </section>
 
       <section class="card">
@@ -39,6 +44,8 @@
       const message = document.getElementById("message");
       const params = new URLSearchParams(window.location.search);
 
+      CedarApp.bindInstallButton(document.getElementById("install-app-button"));
+
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         CedarApp.clearMessage(message);
@@ -52,7 +59,7 @@
             })
           });
 
-          const next = params.get("next") || "/scanner";
+          const next = params.get("next") || CedarApp.getDefaultRouteForRole(result.user);
           if (result.user?.passwordResetRequired) {
             window.location.href = `/set-password?next=${encodeURIComponent(next)}`;
             return;

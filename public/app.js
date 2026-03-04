@@ -1,4 +1,23 @@
 const CedarApp = (() => {
+  let deferredInstallPrompt = null;
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => null);
+    });
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    document.dispatchEvent(new CustomEvent("cedar-install-available"));
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    document.dispatchEvent(new CustomEvent("cedar-installed"));
+  });
+
   async function request(url, options = {}) {
     const response = await fetch(url, {
       credentials: "include",
@@ -42,6 +61,39 @@ const CedarApp = (() => {
     window.location.href = target;
   }
 
+  function getDefaultRouteForRole(user) {
+    if (!user) {
+      return "/";
+    }
+
+    return user.role === "Admin" ? "/dashboard" : "/scanner";
+  }
+
+  function bindInstallButton(button) {
+    if (!button) {
+      return;
+    }
+
+    function updateVisibility() {
+      button.hidden = !deferredInstallPrompt;
+    }
+
+    button.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) {
+        return;
+      }
+
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice.catch(() => null);
+      deferredInstallPrompt = null;
+      updateVisibility();
+    });
+
+    document.addEventListener("cedar-install-available", updateVisibility);
+    document.addEventListener("cedar-installed", updateVisibility);
+    updateVisibility();
+  }
+
   function setMessage(element, type, message) {
     if (!element) {
       return;
@@ -78,6 +130,8 @@ const CedarApp = (() => {
     request,
     getCurrentUser,
     redirectToLogin,
+    getDefaultRouteForRole,
+    bindInstallButton,
     setMessage,
     clearMessage,
     formatDate,
