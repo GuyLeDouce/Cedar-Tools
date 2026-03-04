@@ -28,7 +28,7 @@
           <div id="message" class="notice info" hidden></div>
 
           <button type="submit" class="button-primary">Log In</button>
-          <p class="meta">Default seeded password: <strong>Cedar123!</strong></p>
+          <p class="meta">New and reset accounts are required to set a new password after login.</p>
         </form>
       </section>
     </main>
@@ -44,7 +44,7 @@
         CedarApp.clearMessage(message);
 
         try {
-          await CedarApp.request("/login", {
+          const result = await CedarApp.request("/login", {
             method: "POST",
             body: JSON.stringify({
               email: document.getElementById("email").value,
@@ -53,6 +53,11 @@
           });
 
           const next = params.get("next") || "/scanner";
+          if (result.user?.passwordResetRequired) {
+            window.location.href = `/set-password?next=${encodeURIComponent(next)}`;
+            return;
+          }
+
           window.location.href = next;
         } catch (error) {
           CedarApp.setMessage(message, "error", error.message);

@@ -11,7 +11,7 @@ const {
   generateToolQr,
   dashboardSummary
 } = require("../controllers/toolController");
-const { authenticate, requireAdmin } = require("../middleware/auth");
+const { authenticate, requireAdmin, requireActivePassword } = require("../middleware/auth");
 const { runToolSheetSync } = require("../services/syncToolsFromSheet");
 
 const router = express.Router();
@@ -26,15 +26,15 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get("/tools", authenticate, getTools);
-router.get("/api/tool/:id", authenticate, getTool);
-router.post("/checkout", authenticate, checkoutTool);
-router.post("/return", authenticate, returnTool);
-router.post("/tools", authenticate, requireAdmin, upload.single("photo"), createTool);
-router.put("/tools/:id", authenticate, requireAdmin, upload.single("photo"), updateTool);
-router.post("/tools/:id/generate-qr", authenticate, requireAdmin, generateToolQr);
-router.get("/api/dashboard", authenticate, requireAdmin, dashboardSummary);
-router.post("/admin/sync-tools", authenticate, requireAdmin, async (_req, res, next) => {
+router.get("/tools", authenticate, requireActivePassword, getTools);
+router.get("/api/tool/:id", authenticate, requireActivePassword, getTool);
+router.post("/checkout", authenticate, requireActivePassword, checkoutTool);
+router.post("/return", authenticate, requireActivePassword, returnTool);
+router.post("/tools", authenticate, requireActivePassword, requireAdmin, upload.single("photo"), createTool);
+router.put("/tools/:id", authenticate, requireActivePassword, requireAdmin, upload.single("photo"), updateTool);
+router.post("/tools/:id/generate-qr", authenticate, requireActivePassword, requireAdmin, generateToolQr);
+router.get("/api/dashboard", authenticate, requireActivePassword, requireAdmin, dashboardSummary);
+router.post("/admin/sync-tools", authenticate, requireActivePassword, requireAdmin, async (_req, res, next) => {
   try {
     const result = await runToolSheetSync();
 

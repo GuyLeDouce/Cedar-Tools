@@ -10,7 +10,7 @@
     <main class="app-shell stack">
       <section class="hero">
         <h1>Admin Dashboard</h1>
-        <p>Live tool visibility across job sites.</p>
+        <p>Live tool visibility, user access, and password controls.</p>
       </section>
 
       <section class="card stack">
@@ -24,6 +24,7 @@
           <select id="user-filter">
             <option value="">All Holders</option>
           </select>
+          <a class="button button-secondary" href="/set-password">Change My Password</a>
           <button id="logout-button" class="button-secondary" type="button">Log Out</button>
         </div>
       </section>
@@ -78,6 +79,10 @@
             <textarea name="description" placeholder="Short field description"></textarea>
           </label>
           <label>
+            Tool Location
+            <input type="text" name="location" placeholder="Truck 2" />
+          </label>
+          <label>
             Tool Photo
             <input type="file" name="photo" accept="image/*" />
           </label>
@@ -104,6 +109,10 @@
             <textarea name="description" placeholder="Updated description"></textarea>
           </label>
           <label>
+            Updated Location
+            <input type="text" name="location" placeholder="Updated location" />
+          </label>
+          <label>
             Replace Tool Photo
             <input type="file" name="photo" accept="image/*" />
           </label>
@@ -114,6 +123,61 @@
           <a id="selected-qr-link" class="button button-secondary" href="#" hidden target="_blank" rel="noreferrer">Open Selected QR</a>
         </div>
       </section>
+
+      <section class="card stack">
+        <h2>Users</h2>
+        <form id="user-form" class="form-grid">
+          <label>
+            Full Name
+            <input type="text" name="name" required placeholder="Casey Smith" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required placeholder="casey@cedarwinds.ca" />
+          </label>
+          <label>
+            Role
+            <select name="role" required>
+              <option value="Staff">Staff</option>
+              <option value="Logistics">Logistics</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </label>
+          <label>
+            Temporary Password
+            <input type="text" name="password" placeholder="Defaults to Cedar123!" />
+          </label>
+          <button type="submit" class="button-primary">Create User</button>
+        </form>
+
+        <form id="reset-password-form" class="form-grid">
+          <label>
+            Select User
+            <select id="reset-user-id" required>
+              <option value="">Choose a user</option>
+            </select>
+          </label>
+          <label>
+            New Temporary Password
+            <input type="text" id="reset-password" placeholder="Defaults to Cedar123!" />
+          </label>
+          <button type="submit" class="button-accent">Reset User Password</button>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Password Status</th>
+              </tr>
+            </thead>
+            <tbody id="users-body"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
@@ -121,24 +185,25 @@
     <script>
       const message = document.getElementById("dashboard-message");
       const inventoryBody = document.getElementById("inventory-body");
+      const usersBody = document.getElementById("users-body");
       const statusFilter = document.getElementById("status-filter");
       const userFilter = document.getElementById("user-filter");
       let dashboardData = null;
       let chart = null;
 
-      function populateFilters(tools) {
-        const users = [...new Map(
+      function populateToolFilters(tools) {
+        const holderUsers = [...new Map(
           tools
             .filter((tool) => tool.currentHolder)
             .map((tool) => [tool.currentHolder.id, tool.currentHolder])
         ).values()];
 
         userFilter.innerHTML = '<option value="">All Holders</option>' +
-          users.map((user) => `<option value="${user.id}">${user.name}</option>`).join("");
+          holderUsers.map((user) => `<option value="${user.id}">${user.name}</option>`).join("");
 
         document.getElementById("edit-tool-id").innerHTML =
           '<option value="">Choose a tool</option>' +
-          tools.map((tool) => `<option value="${tool.toolId}">${tool.toolId} • ${tool.name}</option>`).join("");
+          tools.map((tool) => `<option value="${tool.toolId}">${tool.toolId} - ${tool.name}</option>`).join("");
       }
 
       function renderInventory() {
@@ -214,7 +279,7 @@
 
         overdueList.innerHTML = dashboardData.overdueTools.map((tool) => `
           <div class="notice error">
-            ${tool.toolId} • ${tool.name} is with ${tool.currentHolder ? tool.currentHolder.name : "Unknown"} since
+            ${tool.toolId} - ${tool.name} is with ${tool.currentHolder ? tool.currentHolder.name : "Unknown"} since
             ${CedarApp.formatDate(tool.lastActivity?.timestamp)}
           </div>
         `).join("");
@@ -230,8 +295,31 @@
 
         historyList.innerHTML = dashboardData.usageHistory.map((entry) => `
           <div class="notice info">
-            ${entry.toolId} • ${entry.toolName} was ${entry.action} by ${entry.user} on ${CedarApp.formatDate(entry.timestamp)}
+            ${entry.toolId} - ${entry.toolName} was ${entry.action} by ${entry.user} on ${CedarApp.formatDate(entry.timestamp)}
           </div>
+        `).join("");
+      }
+
+      async function loadUsers() {
+        const data = await CedarApp.request("/api/users");
+        const users = data.users || [];
+
+        document.getElementById("reset-user-id").innerHTML =
+          '<option value="">Choose a user</option>' +
+          users.map((user) => `<option value="${user.id}">${user.name} - ${user.email}</option>`).join("");
+
+        if (!users.length) {
+          usersBody.innerHTML = '<tr><td colspan="4" class="empty">No users found.</td></tr>';
+          return;
+        }
+
+        usersBody.innerHTML = users.map((user) => `
+          <tr>
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td>${user.role}</td>
+            <td>${user.passwordResetRequired ? "Must set password" : "Active"}</td>
+          </tr>
         `).join("");
       }
 
@@ -249,11 +337,12 @@
           }
 
           dashboardData = await CedarApp.request("/api/dashboard");
-          populateFilters(dashboardData.tools);
+          populateToolFilters(dashboardData.tools);
           renderInventory();
           renderMostUsedChart();
           renderOverdue();
           renderHistory();
+          await loadUsers();
           CedarApp.setMessage(message, "info", `Signed in as ${user.name}.`);
         } catch (error) {
           CedarApp.setMessage(message, "error", error.message);
@@ -323,6 +412,60 @@
           qrLink.href = result.qrLabelUrl;
           qrLink.hidden = false;
           CedarApp.setMessage(message, "info", `QR code generated for ${toolId}.`);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      });
+
+      document.getElementById("user-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+
+        try {
+          const result = await CedarApp.request("/api/users", {
+            method: "POST",
+            body: JSON.stringify({
+              name: formData.get("name"),
+              email: formData.get("email"),
+              role: formData.get("role"),
+              password: formData.get("password")
+            })
+          });
+          event.target.reset();
+          await loadUsers();
+          CedarApp.setMessage(
+            message,
+            "info",
+            `User created. Temporary password for ${result.user.email}: ${result.temporaryPassword}`
+          );
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      });
+
+      document.getElementById("reset-password-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const userId = document.getElementById("reset-user-id").value;
+
+        if (!userId) {
+          CedarApp.setMessage(message, "error", "Select a user to reset.");
+          return;
+        }
+
+        try {
+          const result = await CedarApp.request(`/api/users/${userId}/reset-password`, {
+            method: "POST",
+            body: JSON.stringify({
+              password: document.getElementById("reset-password").value
+            })
+          });
+          event.target.reset();
+          await loadUsers();
+          CedarApp.setMessage(
+            message,
+            "info",
+            `Password reset for ${result.user.email}. Temporary password: ${result.temporaryPassword}`
+          );
         } catch (error) {
           CedarApp.setMessage(message, "error", error.message);
         }

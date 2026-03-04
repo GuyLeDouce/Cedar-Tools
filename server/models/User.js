@@ -30,15 +30,26 @@ module.exports = (sequelize) =>
         type: DataTypes.ENUM("Admin", "Logistics", "Staff"),
         allowNull: false
       },
+      passwordResetRequired: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "password_reset_required"
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW,
         field: "created_at"
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+        field: "updated_at"
       }
     },
     {
-      tableName: "users",
-      updatedAt: false
+      tableName: "users"
     }
   );

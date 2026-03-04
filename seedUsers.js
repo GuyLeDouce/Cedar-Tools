@@ -38,7 +38,8 @@ async function seedUsers() {
           name: user.name,
           email: user.email,
           passwordHash,
-          role: user.role
+          role: user.role,
+          passwordResetRequired: true
         }
       });
 

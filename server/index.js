@@ -36,6 +36,10 @@ app.get("/login", (_req, res) => {
   res.sendFile(path.join(process.cwd(), "public", "login.html"));
 });
 
+app.get("/set-password", (_req, res) => {
+  res.sendFile(path.join(process.cwd(), "public", "set-password.html"));
+});
+
 app.get("/scanner", (_req, res) => {
   res.sendFile(path.join(process.cwd(), "public", "scanner", "index.html"));
 });

@@ -24,6 +24,9 @@ const CedarApp = (() => {
   async function getCurrentUser() {
     try {
       const data = await request("/api/me");
+      if (data.user?.passwordResetRequired && window.location.pathname !== "/set-password") {
+        window.location.href = `/set-password?next=${encodeURIComponent(window.location.pathname)}`;
+      }
       return data.user;
     } catch (error) {
       if (error.status === 401) {

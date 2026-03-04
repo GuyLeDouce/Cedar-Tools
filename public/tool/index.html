@@ -28,6 +28,7 @@
           <div class="stack">
             <button id="checkout-button" class="button-primary" type="button">CHECK OUT TOOL</button>
             <button id="return-button" class="button-secondary" type="button">RETURN TOOL</button>
+            <a class="button button-secondary" href="/set-password">Change My Password</a>
             <a class="button button-secondary" href="/scanner">Back to Scanner</a>
           </div>
         </div>
@@ -43,7 +44,7 @@
 
       function renderTool(tool) {
         currentTool = tool;
-        document.getElementById("tool-title").textContent = `${tool.toolId} • ${tool.name}`;
+        document.getElementById("tool-title").textContent = `${tool.toolId} - ${tool.name}`;
         document.getElementById("tool-subtitle").textContent = "Live field status";
         document.getElementById("tool-status").innerHTML = CedarApp.statusPill(tool.status);
         document.getElementById("tool-holder").textContent = tool.currentHolder
@@ -94,7 +95,7 @@
             body: JSON.stringify({ toolId })
           });
           renderTool(data.tool);
-          CedarApp.setMessage(message, "info", `Tool updated successfully.`);
+          CedarApp.setMessage(message, "info", "Tool updated successfully.");
         } catch (error) {
           CedarApp.setMessage(message, "error", error.message);
         }

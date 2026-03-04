@@ -40,7 +40,8 @@ async function seed() {
     const createdUsers = await User.bulkCreate(
       users.map((user) => ({
         ...user,
-        passwordHash
+        passwordHash,
+        passwordResetRequired: true
       }))
     );
 

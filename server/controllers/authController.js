@@ -2,6 +2,16 @@ const bcrypt = require("bcryptjs");
 const { User } = require("../models");
 const { issueToken, clearSession } = require("../middleware/auth");
 
+function serializeUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    passwordResetRequired: user.passwordResetRequired
+  };
+}
+
 async function login(req, res) {
   const { email, password } = req.body;
 
@@ -31,12 +41,7 @@ async function login(req, res) {
   });
 
   return res.json({
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    }
+    user: serializeUser(user)
   });
 }
 
@@ -47,17 +52,133 @@ function logout(req, res) {
 
 function me(req, res) {
   return res.json({
-    user: {
-      id: req.user.id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role
+    user: serializeUser(req.user)
+  });
+}
+
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: "New password must be at least 8 characters." });
+  }
+
+  if (req.user.passwordResetRequired) {
+    if (!currentPassword) {
+      return res.status(400).json({ error: "Current password is required." });
     }
+
+    const validPassword = await bcrypt.compare(currentPassword, req.user.passwordHash);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: "Current password is incorrect." });
+    }
+  } else if (currentPassword) {
+    const validPassword = await bcrypt.compare(currentPassword, req.user.passwordHash);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: "Current password is incorrect." });
+    }
+  } else {
+    return res.status(400).json({ error: "Current password is required." });
+  }
+
+  req.user.passwordHash = await bcrypt.hash(newPassword, 10);
+  req.user.passwordResetRequired = false;
+  await req.user.save();
+
+  const token = issueToken(req.user);
+
+  res.cookie("cedar_session", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
+
+  return res.json({
+    success: true,
+    user: serializeUser(req.user)
+  });
+}
+
+async function listUsers(req, res) {
+  const users = await User.findAll({
+    attributes: ["id", "name", "email", "role", "passwordResetRequired", "createdAt", "updatedAt"],
+    order: [["name", "ASC"]]
+  });
+
+  return res.json({ users });
+}
+
+async function createUser(req, res) {
+  const { name, email, role, password } = req.body;
+
+  if (!name || !email || !role) {
+    return res.status(400).json({ error: "Name, email, and role are required." });
+  }
+
+  if (!["Admin", "Logistics", "Staff"].includes(role)) {
+    return res.status(400).json({ error: "Invalid role." });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = await User.findOne({ where: { email: normalizedEmail } });
+
+  if (existing) {
+    return res.status(409).json({ error: "A user with that email already exists." });
+  }
+
+  const tempPassword = password?.trim() || "Cedar123!";
+
+  if (tempPassword.length < 8) {
+    return res.status(400).json({ error: "Temporary password must be at least 8 characters." });
+  }
+
+  const user = await User.create({
+    name: name.trim(),
+    email: normalizedEmail,
+    role,
+    passwordHash: await bcrypt.hash(tempPassword, 10),
+    passwordResetRequired: true
+  });
+
+  return res.status(201).json({
+    user: serializeUser(user),
+    temporaryPassword: tempPassword
+  });
+}
+
+async function resetUserPassword(req, res) {
+  const user = await User.findByPk(req.params.id);
+
+  if (!user) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  const tempPassword = req.body.password?.trim() || "Cedar123!";
+
+  if (tempPassword.length < 8) {
+    return res.status(400).json({ error: "Temporary password must be at least 8 characters." });
+  }
+
+  user.passwordHash = await bcrypt.hash(tempPassword, 10);
+  user.passwordResetRequired = true;
+  await user.save();
+
+  return res.json({
+    success: true,
+    user: serializeUser(user),
+    temporaryPassword: tempPassword
   });
 }
 
 module.exports = {
   login,
   logout,
-  me
+  me,
+  changePassword,
+  listUsers,
+  createUser,
+  resetUserPassword
 };

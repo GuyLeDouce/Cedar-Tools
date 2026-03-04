@@ -7,7 +7,8 @@ function issueToken(user) {
       id: user.id,
       email: user.email,
       role: user.role,
-      name: user.name
+      name: user.name,
+      passwordResetRequired: user.passwordResetRequired
     },
     process.env.JWT_SECRET,
     {
@@ -46,6 +47,22 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
+function requirePasswordChange(req, res, next) {
+  if (!req.user?.passwordResetRequired) {
+    return res.status(409).json({ error: "Password reset is not required for this account." });
+  }
+
+  return next();
+}
+
+function requireActivePassword(req, res, next) {
+  if (req.user?.passwordResetRequired) {
+    return res.status(403).json({ error: "You must set a new password before continuing." });
+  }
+
+  return next();
+}
+
 function clearSession(res) {
   res.clearCookie("cedar_session");
 }
@@ -53,6 +70,8 @@ function clearSession(res) {
 module.exports = {
   authenticate,
   requireAdmin,
+  requirePasswordChange,
+  requireActivePassword,
   issueToken,
   clearSession
 };
