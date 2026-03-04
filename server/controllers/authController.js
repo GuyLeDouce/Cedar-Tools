@@ -205,6 +205,60 @@ async function resetUserPassword(req, res) {
   });
 }
 
+async function debugLoginCheck(req, res) {
+  const debugKey = process.env.DEBUG_LOGIN_KEY;
+  const providedKey = String(req.query.key || "");
+
+  if (!debugKey) {
+    return res.status(503).json({ error: "Debug login check is disabled on this deployment." });
+  }
+
+  if (providedKey !== debugKey) {
+    return res.status(403).json({ error: "Invalid debug key." });
+  }
+
+  const identifier = String(req.query.identifier || "").trim().toLowerCase();
+  const password = String(req.query.password || "");
+
+  if (!identifier || !password) {
+    return res.status(400).json({ error: "identifier and password query params are required." });
+  }
+
+  const user = await User.findOne({
+    where: {
+      [Op.or]: [
+        where(fn("lower", col("email")), identifier),
+        where(fn("lower", col("username")), identifier)
+      ]
+    }
+  });
+
+  if (!user) {
+    return res.json({
+      success: false,
+      found: false,
+      identifier
+    });
+  }
+
+  const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+
+  return res.json({
+    success: true,
+    found: true,
+    identifier,
+    passwordMatch,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      passwordResetRequired: user.passwordResetRequired,
+      hashPrefix: String(user.passwordHash || "").slice(0, 4)
+    }
+  });
+}
+
 module.exports = {
   login,
   logout,
@@ -212,5 +266,6 @@ module.exports = {
   changePassword,
   listUsers,
   createUser,
-  resetUserPassword
+  resetUserPassword,
+  debugLoginCheck
 };
