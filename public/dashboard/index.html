@@ -54,15 +54,9 @@
         </div>
       </section>
 
-      <section class="grid two">
-        <article class="card chart-card stack">
-          <h2>Most Used Tools</h2>
-          <canvas id="usage-chart" height="220"></canvas>
-        </article>
-        <article class="card chart-card stack">
-          <h2>Overdue Tools</h2>
-          <div id="overdue-list" class="stack"></div>
-        </article>
+      <section class="card chart-card stack">
+        <h2>Overdue Tools</h2>
+        <div id="overdue-list" class="stack"></div>
       </section>
 
       <section class="card stack">
@@ -187,7 +181,6 @@
       </section>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="/app.js"></script>
     <script>
       const message = document.getElementById("dashboard-message");
@@ -196,7 +189,6 @@
       const statusFilter = document.getElementById("status-filter");
       const userFilter = document.getElementById("user-filter");
       let dashboardData = null;
-      let chart = null;
 
       CedarApp.bindInstallButton(document.getElementById("install-app-button"));
 
@@ -238,44 +230,6 @@
             <td>${tool.lastActivity ? `${tool.lastActivity.action} on ${CedarApp.formatDate(tool.lastActivity.timestamp)}` : "No history"}</td>
           </tr>
         `).join("");
-      }
-
-      function renderMostUsedChart() {
-        const canvas = document.getElementById("usage-chart");
-        const labels = dashboardData.mostUsedTools.map((item) => item.toolId);
-        const values = dashboardData.mostUsedTools.map((item) => item.count);
-
-        if (chart) {
-          chart.destroy();
-        }
-
-        chart = new Chart(canvas, {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "Transactions",
-                data: values,
-                backgroundColor: "#2f5d3a",
-                borderRadius: 8
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: { precision: 0 }
-              }
-            }
-          }
-        });
       }
 
       function renderOverdue() {
@@ -348,7 +302,6 @@
           dashboardData = await CedarApp.request("/api/dashboard");
           populateToolFilters(dashboardData.tools);
           renderInventory();
-          renderMostUsedChart();
           renderOverdue();
           renderHistory();
           await loadUsers();
