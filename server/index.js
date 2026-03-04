@@ -7,7 +7,11 @@ const cookieParser = require("cookie-parser");
 const { sequelize } = require("./models");
 const authRoutes = require("./routes/authRoutes");
 const toolRoutes = require("./routes/toolRoutes");
-const { runToolSheetSync, scheduleToolSheetSync } = require("./services/syncToolsFromSheet");
+const {
+  runToolSheetSync,
+  scheduleToolSheetSync,
+  logSyncConfigurationStatus
+} = require("./services/syncToolsFromSheet");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -57,8 +61,11 @@ async function start() {
   try {
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
-    await runToolSheetSync();
-    scheduleToolSheetSync();
+    const syncEnabled = logSyncConfigurationStatus();
+    if (syncEnabled) {
+      await runToolSheetSync();
+      scheduleToolSheetSync();
+    }
     app.listen(port, () => {
       console.log(`Cedar Winds tool tracker listening on ${port}`);
     });

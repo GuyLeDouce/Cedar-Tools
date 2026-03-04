@@ -11,6 +11,7 @@ const {
   dashboardSummary
 } = require("../controllers/toolController");
 const { authenticate, requireAdmin } = require("../middleware/auth");
+const { runToolSheetSync } = require("../services/syncToolsFromSheet");
 
 const router = express.Router();
 
@@ -31,5 +32,28 @@ router.post("/return", authenticate, returnTool);
 router.post("/tools", authenticate, requireAdmin, upload.single("photo"), createTool);
 router.put("/tools/:id", authenticate, requireAdmin, upload.single("photo"), updateTool);
 router.get("/api/dashboard", authenticate, requireAdmin, dashboardSummary);
+router.post("/admin/sync-tools", authenticate, requireAdmin, async (_req, res, next) => {
+  try {
+    const result = await runToolSheetSync();
+
+    if (!result.success) {
+      return res.status(result.disabled ? 503 : 500).json({
+        success: false,
+        error: result.reason || result.error || "sync_failed",
+        missing: result.missing || [],
+        tools_added: result.toolsAdded || 0,
+        skipped: result.skipped || 0
+      });
+    }
+
+    return res.json({
+      success: true,
+      tools_added: result.toolsAdded,
+      skipped: result.skipped
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 module.exports = router;

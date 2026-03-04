@@ -7,25 +7,64 @@ const QRCode = require("qrcode");
 const { google } = require("googleapis");
 const { Tool } = require("../models");
 
-const SHEET_RANGE = process.env.GOOGLE_SHEET_RANGE || "Tools!A:E";
 const CRON_SCHEDULE = "0 * * * *";
 
-function isSyncConfigured() {
-  return Boolean(
-    process.env.GOOGLE_SHEET_ID &&
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      process.env.GOOGLE_PRIVATE_KEY
-  );
+function getSyncConfig() {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  const range = process.env.GOOGLE_SHEET_RANGE || "Tools!A:E";
+  const missing = [];
+
+  if (!sheetId) {
+    missing.push("GOOGLE_SHEET_ID");
+  }
+
+  if (!serviceAccountEmail) {
+    missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  }
+
+  if (!privateKey) {
+    missing.push("GOOGLE_PRIVATE_KEY");
+  }
+
+  return {
+    enabled: missing.length === 0,
+    missing,
+    sheetId,
+    serviceAccountEmail,
+    privateKey,
+    range
+  };
 }
 
-function getSheetsClient() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n")
-    },
+function getNormalizedPrivateKey(rawPrivateKey) {
+  return String(rawPrivateKey).replace(/\\n/g, "\n").replace(/\n/g, "\n");
+}
+
+async function createSheetsClient() {
+  const config = getSyncConfig();
+
+  if (!config.enabled) {
+    const error = new Error(`Missing required variables: ${config.missing.join(", ")}`);
+    error.code = "SYNC_CONFIG_MISSING";
+    throw error;
+  }
+
+  const auth = new google.auth.JWT({
+    email: config.serviceAccountEmail,
+    key: getNormalizedPrivateKey(config.privateKey),
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
   });
+
+  try {
+    await auth.authorize();
+  } catch (error) {
+    const authError = new Error("Google authentication failed. Check GOOGLE_PRIVATE_KEY formatting.");
+    authError.code = "GOOGLE_AUTH_FAILED";
+    authError.cause = error;
+    throw authError;
+  }
 
   return google.sheets({ version: "v4", auth });
 }
@@ -84,29 +123,46 @@ async function generateQrCode(toolId) {
 }
 
 async function fetchToolRows() {
-  const sheets = getSheetsClient();
+  const config = getSyncConfig();
+  const sheets = await createSheetsClient();
   const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: SHEET_RANGE
+    spreadsheetId: config.sheetId,
+    range: config.range
   });
 
   return removeHeaderRow(response.data.values || []);
 }
 
 async function runToolSheetSync() {
-  if (!isSyncConfigured()) {
-    console.log("Google Sheets sync is disabled. Missing Google Sheets environment variables.");
-    return;
+  const config = getSyncConfig();
+
+  if (!config.enabled) {
+    console.warn(
+      `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
+    );
+    return {
+      success: false,
+      disabled: true,
+      reason: "missing_configuration",
+      missing: config.missing,
+      rowsFetched: 0,
+      toolsAdded: 0,
+      skipped: 0,
+      qrCodesGenerated: 0
+    };
   }
 
   console.log("Fetching tools from Google Sheet...");
 
+  let rowsFetched = 0;
   let newToolsAdded = 0;
   let existingToolsSkipped = 0;
   let qrCodesGenerated = 0;
 
   try {
     const rows = await fetchToolRows();
+    rowsFetched = rows.length;
+    console.log(`Rows fetched: ${rowsFetched}`);
     const tools = rows.map(normalizeRow).filter(Boolean);
 
     for (const tool of tools) {
@@ -129,14 +185,55 @@ async function runToolSheetSync() {
     console.log(`New tools added: ${newToolsAdded}`);
     console.log(`Existing tools skipped: ${existingToolsSkipped}`);
     console.log(`QR codes generated: ${qrCodesGenerated}`);
+    return {
+      success: true,
+      rowsFetched,
+      toolsAdded: newToolsAdded,
+      skipped: existingToolsSkipped,
+      qrCodesGenerated
+    };
   } catch (error) {
-    console.error("Google Sheets sync failed:", error.message);
+    if (error.code === "GOOGLE_AUTH_FAILED") {
+      console.error(error.message);
+      if (error.cause?.message) {
+        console.error("Google auth error details:", error.cause.message);
+      }
+    } else {
+      console.error("Google Sheets sync failed:", error.message);
+    }
     console.error("The sync job will retry on the next scheduled run.");
+    return {
+      success: false,
+      rowsFetched,
+      toolsAdded: newToolsAdded,
+      skipped: existingToolsSkipped,
+      qrCodesGenerated,
+      error: error.message,
+      code: error.code || "SYNC_FAILED"
+    };
   }
 }
 
+function logSyncConfigurationStatus() {
+  const config = getSyncConfig();
+
+  if (!config.enabled) {
+    console.warn(
+      `Google Sheets sync disabled. Missing required environment variables: ${config.missing.join(", ")}`
+    );
+    return false;
+  }
+
+  console.log("Google Sheets sync enabled");
+  console.log(`Sheet ID: ${config.sheetId}`);
+  console.log(`Range: ${config.range}`);
+  return true;
+}
+
 function scheduleToolSheetSync() {
-  if (!isSyncConfigured()) {
+  const config = getSyncConfig();
+
+  if (!config.enabled) {
     return null;
   }
 
@@ -146,6 +243,10 @@ function scheduleToolSheetSync() {
 }
 
 module.exports = {
+  getSyncConfig,
+  createSheetsClient,
+  fetchToolRows,
   runToolSheetSync,
-  scheduleToolSheetSync
+  scheduleToolSheetSync,
+  logSyncConfigurationStatus
 };
