@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { Op } = require("sequelize");
+const { Op, where, fn, col } = require("sequelize");
 const { User } = require("../models");
 const { issueToken, clearSession } = require("../middleware/auth");
 
@@ -34,8 +34,8 @@ async function login(req, res) {
   const user = await User.findOne({
     where: {
       [Op.or]: [
-        { email: normalizedIdentifier },
-        { username: normalizedIdentifier }
+        where(fn("lower", col("email")), normalizedIdentifier),
+        where(fn("lower", col("username")), normalizedIdentifier)
       ]
     }
   });
