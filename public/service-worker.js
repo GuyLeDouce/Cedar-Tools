@@ -1,4 +1,4 @@
-const CACHE_NAME = "cedar-tools-v1";
+const CACHE_NAME = "cedar-tools-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -49,6 +49,25 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (requestUrl.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  const isHtmlRequest =
+    event.request.mode === "navigate" ||
+    event.request.headers.get("accept")?.includes("text/html");
+
+  if (isHtmlRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    );
     return;
   }
 
