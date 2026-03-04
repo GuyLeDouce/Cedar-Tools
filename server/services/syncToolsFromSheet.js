@@ -266,7 +266,7 @@ async function runToolSheetSync() {
     for (const tool of tools) {
       const existing = await Tool.findOne({
         where: {
-          qrCode: tool.qrCode
+          toolId: tool.toolId
         }
       });
 
@@ -274,12 +274,14 @@ async function runToolSheetSync() {
         `
         INSERT INTO tools (tool_id, name, category, description, location, status, qr_code, created_at)
         VALUES (:tool_id, :name, :category, :description, :location, :status, :qr_code, NOW())
-        ON CONFLICT (qr_code)
+        ON CONFLICT (tool_id)
         DO UPDATE SET
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           description = EXCLUDED.description,
-          location = EXCLUDED.location;
+          location = EXCLUDED.location,
+          status = EXCLUDED.status,
+          qr_code = EXCLUDED.qr_code;
         `,
         {
           replacements: {
