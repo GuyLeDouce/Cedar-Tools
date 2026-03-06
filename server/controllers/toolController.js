@@ -4,6 +4,10 @@ const QRCode = require("qrcode");
 const { Op } = require("sequelize");
 const { Tool, Transaction, User, sequelize } = require("../models");
 
+function getEffectiveStatus(tool) {
+  return tool.currentHolder ? "Checked Out" : tool.status;
+}
+
 async function formatTool(tool) {
   const lastActivity = await Transaction.findOne({
     where: { toolId: tool.id },
@@ -17,7 +21,7 @@ async function formatTool(tool) {
     name: tool.name,
     description: tool.description,
     location: tool.location,
-    status: tool.status,
+    status: getEffectiveStatus(tool),
     photoUrl: tool.photoUrl,
     currentHolder: tool.holder
       ? {
@@ -40,10 +44,6 @@ async function getTools(req, res) {
   const { status, userId } = req.query;
   const where = {};
 
-  if (status && ["Available", "Checked Out"].includes(status)) {
-    where.status = status;
-  }
-
   if (userId) {
     where.currentHolder = userId;
   }
@@ -54,7 +54,12 @@ async function getTools(req, res) {
     order: [["toolId", "ASC"]]
   });
 
-  const payload = await Promise.all(tools.map((tool) => formatTool(tool)));
+  let payload = await Promise.all(tools.map((tool) => formatTool(tool)));
+
+  if (status && ["Available", "Checked Out"].includes(status)) {
+    payload = payload.filter((tool) => tool.status === status);
+  }
+
   return res.json({ tools: payload });
 }
 
@@ -88,7 +93,8 @@ async function checkoutTool(req, res) {
         {
           where: {
             toolId,
-            status: "Available"
+            status: "Available",
+            currentHolder: null
           },
           transaction
         }
@@ -137,7 +143,7 @@ async function returnTool(req, res) {
     return res.status(404).json({ error: "Tool not found." });
   }
 
-  if (tool.status === "Available") {
+  if (tool.status === "Available" && !tool.currentHolder) {
     return res.status(409).json({ error: "Tool is already available." });
   }
 

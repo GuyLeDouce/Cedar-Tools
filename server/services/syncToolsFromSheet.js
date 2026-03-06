@@ -129,8 +129,7 @@ function normalizeRow(row) {
     category,
     description: mergedDescription,
     qrCode: `/tool/${toolId}`,
-    location,
-    status: "Available"
+    location
   };
 }
 
@@ -273,14 +272,13 @@ async function runToolSheetSync() {
       await sequelize.query(
         `
         INSERT INTO tools (tool_id, name, category, description, location, status, qr_code, created_at)
-        VALUES (:tool_id, :name, :category, :description, :location, :status, :qr_code, NOW())
+        VALUES (:tool_id, :name, :category, :description, :location, 'Available', :qr_code, NOW())
         ON CONFLICT (tool_id)
         DO UPDATE SET
           name = EXCLUDED.name,
           category = EXCLUDED.category,
           description = EXCLUDED.description,
           location = EXCLUDED.location,
-          status = EXCLUDED.status,
           qr_code = EXCLUDED.qr_code;
         `,
         {
@@ -290,7 +288,6 @@ async function runToolSheetSync() {
             category: tool.category,
             description: tool.description,
             location: tool.location,
-            status: tool.status,
             qr_code: tool.qrCode
           }
         }
