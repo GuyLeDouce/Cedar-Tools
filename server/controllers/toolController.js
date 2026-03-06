@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const QRCode = require("qrcode");
 const { Op } = require("sequelize");
-const { Tool, Transaction, User } = require("../models");
+const { Tool, Transaction, User, sequelize } = require("../models");
 
 async function formatTool(tool) {
   const lastActivity = await Transaction.findOne({
@@ -72,27 +72,62 @@ async function getTool(req, res) {
 }
 
 async function checkoutTool(req, res) {
-  const tool = await Tool.findOne({ where: { toolId: req.body.toolId?.toUpperCase() } });
+  const toolId = req.body.toolId?.toUpperCase()?.trim();
 
-  if (!tool) {
-    return res.status(404).json({ error: "Tool not found." });
+  if (!toolId) {
+    return res.status(400).json({ error: "Tool ID is required." });
   }
 
-  if (tool.status === "Checked Out") {
-    return res.status(409).json({ error: "Tool is already checked out." });
+  try {
+    await sequelize.transaction(async (transaction) => {
+      const [updatedRows] = await Tool.update(
+        {
+          status: "Checked Out",
+          currentHolder: req.user.id
+        },
+        {
+          where: {
+            toolId,
+            status: "Available"
+          },
+          transaction
+        }
+      );
+
+      if (!updatedRows) {
+        const existing = await Tool.findOne({
+          where: { toolId },
+          transaction
+        });
+
+        const error = new Error(existing ? "Tool is already checked out." : "Tool not found.");
+        error.status = existing ? 409 : 404;
+        throw error;
+      }
+
+      const tool = await Tool.findOne({
+        where: { toolId },
+        transaction
+      });
+
+      await Transaction.create(
+        {
+          toolId: tool.id,
+          userId: req.user.id,
+          action: "checkout"
+        },
+        { transaction }
+      );
+    });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message });
+    }
+
+    throw error;
   }
 
-  tool.status = "Checked Out";
-  tool.currentHolder = req.user.id;
-  await tool.save();
-
-  await Transaction.create({
-    toolId: tool.id,
-    userId: req.user.id,
-    action: "checkout"
-  });
-
-  return getTool({ ...req, params: { id: tool.toolId } }, res);
+  return getTool({ ...req, params: { id: toolId } }, res);
 }
 
 async function returnTool(req, res) {

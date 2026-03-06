@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b457f" />
+    <title>Inventory | CW Tools</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/ToolsLogo-192.png" />
+    <link rel="apple-touch-icon" href="/icons/ToolsLogo-192.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell stack">
+      <section class="hero">
+        <img class="brand-logo" src="/icons/ToolsLogo.jpg" alt="Cedar Winds logo" />
+        <h1>Tool Inventory</h1>
+        <p>View all tools and current availability across jobsites.</p>
+        <div class="toolbar compact">
+          <button id="install-app-button" class="button-ghost" type="button" hidden>Install App</button>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <div id="inventory-message" class="notice info">Loading inventory...</div>
+        <div class="toolbar">
+          <select id="status-filter">
+            <option value="">All Statuses</option>
+            <option value="Available">Available</option>
+            <option value="Checked Out">Checked Out</option>
+          </select>
+          <a class="button button-secondary" href="/scanner">Back to Scanner</a>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tool ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Current Holder</th>
+                <th>Last Activity</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+    <script>
+      const message = document.getElementById("inventory-message");
+      const body = document.getElementById("inventory-body");
+      const statusFilter = document.getElementById("status-filter");
+      let tools = [];
+
+      CedarApp.bindInstallButton(document.getElementById("install-app-button"));
+
+      function renderInventory() {
+        const status = statusFilter.value;
+        const filtered = tools.filter((tool) => !status || tool.status === status);
+
+        if (!filtered.length) {
+          body.innerHTML = '<tr><td colspan="5" class="empty">No tools match this filter.</td></tr>';
+          return;
+        }
+
+        body.innerHTML = filtered.map((tool) => `
+          <tr>
+            <td>${tool.toolId}</td>
+            <td>${tool.name}</td>
+            <td>${CedarApp.statusPill(tool.status)}</td>
+            <td>${tool.currentHolder ? tool.currentHolder.name : "Unassigned"}</td>
+            <td>${tool.lastActivity ? `${tool.lastActivity.action} on ${CedarApp.formatDate(tool.lastActivity.timestamp)}` : "No history"}</td>
+          </tr>
+        `).join("");
+      }
+
+      statusFilter.addEventListener("change", renderInventory);
+
+      (async () => {
+        try {
+          const user = await CedarApp.getCurrentUser();
+
+          if (!user) {
+            CedarApp.redirectToLogin("/inventory");
+            return;
+          }
+
+          const data = await CedarApp.request("/tools");
+          tools = data.tools || [];
+          renderInventory();
+          CedarApp.setMessage(message, "info", `Signed in as ${user.name}.`);
+        } catch (error) {
+          CedarApp.setMessage(message, "error", error.message);
+        }
+      })();
+    </script>
+  </body>
+</html>

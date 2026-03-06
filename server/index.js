@@ -13,6 +13,7 @@ const {
   logSyncConfigurationStatus
 } = require("./services/syncToolsFromSheet");
 const { ensureDefaultUsers } = require("./services/bootstrapUsers");
+const { authenticate, requireActivePassword, requireAdmin } = require("./middleware/auth");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -45,7 +46,11 @@ app.get("/scanner", (_req, res) => {
   res.sendFile(path.join(process.cwd(), "public", "scanner", "index.html"));
 });
 
-app.get("/dashboard", (_req, res) => {
+app.get("/inventory", (_req, res) => {
+  res.sendFile(path.join(process.cwd(), "public", "inventory", "index.html"));
+});
+
+app.get("/dashboard", authenticate, requireActivePassword, requireAdmin, (_req, res) => {
   res.sendFile(path.join(process.cwd(), "public", "dashboard", "index.html"));
 });
 

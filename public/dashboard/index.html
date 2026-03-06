@@ -296,7 +296,7 @@
           }
 
           if (user.role !== "Admin") {
-            CedarApp.setMessage(message, "error", "Admin access required.");
+            window.location.href = CedarApp.getDefaultRouteForRole(user);
             return;
           }
 
