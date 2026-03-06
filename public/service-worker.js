@@ -1,4 +1,4 @@
-const CACHE_NAME = "cedar-tools-v5";
+const CACHE_NAME = "cedar-tools-v6";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,6 +8,8 @@ const APP_SHELL = [
   "/set-password.html",
   "/scanner",
   "/scanner/index.html",
+  "/inventory",
+  "/inventory/index.html",
   "/dashboard",
   "/dashboard/index.html",
   "/tool/index.html",
