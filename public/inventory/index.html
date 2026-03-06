@@ -18,6 +18,7 @@
         <p>View all tools and current availability across jobsites.</p>
         <div class="toolbar compact">
           <button id="install-app-button" class="button-ghost" type="button" hidden>Install App</button>
+          <button id="refresh-button" class="button-ghost" type="button">Refresh</button>
         </div>
       </section>
 
@@ -59,6 +60,7 @@
       let tools = [];
 
       CedarApp.bindInstallButton(document.getElementById("install-app-button"));
+      CedarApp.bindRefreshButton(document.getElementById("refresh-button"));
 
       function renderInventory() {
         const status = statusFilter.value;

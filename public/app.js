@@ -75,11 +75,17 @@ const CedarApp = (() => {
     }
 
     function updateVisibility() {
-      button.hidden = !deferredInstallPrompt;
+      button.hidden = false;
+      button.disabled = false;
     }
 
     button.addEventListener("click", async () => {
       if (!deferredInstallPrompt) {
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+        const instructions = isIOS
+          ? "To add this app on iPhone/iPad: tap Share, then tap Add to Home Screen."
+          : "Install prompt is not available yet. On most browsers, open the menu and choose Install App or Add to Home Screen.";
+        window.alert(instructions);
         return;
       }
 
@@ -92,6 +98,16 @@ const CedarApp = (() => {
     document.addEventListener("cedar-install-available", updateVisibility);
     document.addEventListener("cedar-installed", updateVisibility);
     updateVisibility();
+  }
+
+  function bindRefreshButton(button) {
+    if (!button) {
+      return;
+    }
+
+    button.addEventListener("click", () => {
+      window.location.reload();
+    });
   }
 
   function setMessage(element, type, message) {
@@ -132,6 +148,7 @@ const CedarApp = (() => {
     redirectToLogin,
     getDefaultRouteForRole,
     bindInstallButton,
+    bindRefreshButton,
     setMessage,
     clearMessage,
     formatDate,

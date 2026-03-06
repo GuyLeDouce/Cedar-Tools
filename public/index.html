@@ -17,6 +17,7 @@
         <p>Scan a QR label, log in, and check tools in or out from the job site.</p>
         <div class="toolbar compact">
           <button id="install-app-button" class="button-ghost" type="button" hidden>Install App</button>
+          <button id="refresh-button" class="button-ghost" type="button">Refresh</button>
         </div>
       </section>
 
@@ -26,6 +27,7 @@
           <p class="meta">Use the scanner to open a tool page, then tap one button to check it out or return it.</p>
           <div class="toolbar">
             <a class="button button-primary" href="/scanner">Open Scanner</a>
+            <a class="button button-secondary" href="/inventory">View Inventory</a>
             <a class="button button-secondary" href="/login">Sign In</a>
           </div>
         </article>
@@ -42,6 +44,7 @@
     <script src="/app.js"></script>
     <script>
       CedarApp.bindInstallButton(document.getElementById("install-app-button"));
+      CedarApp.bindRefreshButton(document.getElementById("refresh-button"));
     </script>
   </body>
 </html>
